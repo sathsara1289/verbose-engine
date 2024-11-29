@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced Schedule Planner</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    animation: {
+                        'fadeInScale': 'fadeInScale 0.5s ease-out',
+                        'fadeInLeft': 'fadeInLeft 0.5s ease-out'
+                    },
+                    keyframes: {
+                        fadeInScale: {
+                            '0%': { opacity: '0', transform: 'scale(0.9)' },
+                            '100%': { opacity: '1', transform: 'scale(1)' }
+                        },
+                        fadeInLeft: {
+                            '0%': { opacity: '0', transform: 'translateX(-50px)' },
+                            '100%': { opacity: '1', transform: 'translateX(0)' }
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @media (max-width: 640px) {
+            .schedule-item {
+                flex-direction: column;
+                text-align: center;
+                gap: 0.5rem;
+            }
+            .icon-container {
+                margin-right: 0;
+                margin-bottom: 0.5rem;
+            }
+            .duration-container {
+                margin-top: 0.5rem;
+            }
+        }
+    </style>
+</head>
+<body class="min-h-screen bg-gradient-to-br from-blue-100 to-purple-200 p-4">
+    <div class="container mx-auto max-w-6xl">
+        <!-- Header -->
+        <div class="bg-white/30 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/40 p-6 mb-6 animate-fadeInScale">
+            <h1 class="text-3xl font-bold text-center text-gray-800 mb-4">Advanced Schedule Planner</h1>
+            
+            <!-- Task Addition Form -->
+            <form id="addTaskForm" onsubmit="addNewTask(event)" class="grid grid-cols-1 gap-4 mb-4">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <input type="text" name="title" placeholder="Task Title" required class="w-full px-3 py-2 border rounded-lg">
+                    <div class="grid grid-cols-2 gap-2">
+                        <input type="date" name="taskDate" required class="w-full px-3 py-2 border rounded-lg">
+                        <input type="time" name="startTime" required class="w-full px-3 py-2 border rounded-lg">
+                    </div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <input type="time" name="endTime" required class="w-full px-3 py-2 border rounded-lg">
+                        <select name="subject" required class="w-full px-3 py-2 border rounded-lg">
+                            <option value="physics">Physics</option>
+                            <option value="maths">Mathematics</option>
+                            <option value="ict">ICT</option>
+                            <option value="break">Break</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    <select name="priority" required class="px-3 py-2 border rounded-lg">
+                        <option value="high">High Priority</option>
+                        <option value="medium">Medium Priority</option>
+                        <option value="low">Low Priority</option>
+                    </select>
+                    <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center justify-center gap-2">
+                        <i class="fas fa-plus"></i> Add Task
+                    </button>
+                    <div class="flex gap-4">
+                        <select id="filterSubject" onchange="filterSchedule()" class="flex-grow bg-white/50 px-4 py-2 rounded-lg">
+                            <option value="all">All Subjects</option>
+                            <option value="physics">Physics</option>
+                            <option value="maths">Mathematics</option>
+                            <option value="ict">ICT</option>
+                            <option value="break">Breaks</option>
+                        </select>
+                        <button type="button" onclick="toggleView()" class="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded-lg flex items-center gap-2">
+                            <i class="fas fa-table"></i> Toggle View
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        <!-- Schedule Container -->
+        <div id="scheduleContainer" class="bg-white/30 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/40 overflow-hidden animate-fadeInScale">
+            <div id="scheduleItems" class="p-6 space-y-4">
+                <!-- Schedule items will be inserted here by JavaScript -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let scheduleItems = [
+            {
+                id: 1,
+                date: '2024-02-15',
+                time: '5:00 AM - 6:00 AM',
+                title: 'Rapid Test (Physics)',
+                duration: '1 hour',
+                subject: 'physics',
+                priority: 'high',
+                icon: 'fa-solid fa-atom'
+            },
+            {
+                id: 2,
+                date: '2024-02-15',
+                time: '6:00 AM - 7:00 AM',
+                title: 'Applied Test (Maths)',
+                duration: '1 hour',
+                subject: 'maths',
+                priority: 'high',
+                icon: 'fa-solid fa-square-root-variable'
+            },
+            {
+                id: 3,
+                date: '2024-02-16',
+                time: '7:00 AM - 8:00 AM',
+                title: 'Break for Breakfast',
+                duration: '1 hour',
+                subject: 'break',
+                priority: 'medium',
+                icon: 'fa-solid fa-mug-hot'
+            }
+        ];
+
+        let currentView = 'list';
+        let currentFilter = {
+            subject: 'all',
+            date: 'all'
+        };
+
+        function getSubjectIcon(subject) {
+            const icons = {
+                physics: 'fa-atom',
+                maths: 'fa-square-root-variable',
+                ict: 'fa-microchip',
+                break: 'fa-mug-hot'
+            };
+            return icons[subject] || 'fa-book';
+        }
+
+        function getPriorityColor(priority) {
+            const colors = {
+                high: 'text-red-500',
+                medium: 'text-yellow-500',
+                low: 'text-green-500'
+            };
+            return colors[priority] || 'text-gray-500';
+        }
+
+        function formatDate(dateString) {
+            const date = new Date(dateString);
+            return date.toLocaleDateString('en-US', { 
+                weekday: 'short', 
+                year: 'numeric', 
+                month: 'short', 
+                day: 'numeric' 
+            });
+        }
+
+        function createScheduleItem(item) {
+            const div = document.createElement('div');
+            const priorityColor = getPriorityColor(item.priority);
+            
+            div.className = `schedule-item bg-white/50 backdrop-blur-md p-4 rounded-xl cursor-pointer transition-all duration-300 animate-[fadeInLeft] hover:bg-white/60 ${
+                currentView === 'grid' ? 'flex flex-col items-center text-center' : 'flex items-center'
+            }`;
+            
+            div.innerHTML = `
+                <div class="icon-container ${currentView === 'grid' ? 'mb-4' : 'mr-4'}">
+                    <i class="fa-solid ${getSubjectIcon(item.subject)} text-2xl ${priorityColor}"></i>
+                </div>
+                <div class="flex-grow">
+                    <div class="font-semibold text-gray-800">${item.title}</div>
+                    <div class="text-sm text-gray-600">${formatDate(item.date)} | ${item.time}</div>
+                </div>
+                <div class="duration-container text-sm text-gray-700 font-medium">
+                    ${item.duration}
+                    <button onclick="deleteTask(${item.id})" class="ml-2 text-red-500 hover:text-red-600">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            `;
+            
+            return div;
+        }
+
+        function renderSchedule(items = scheduleItems) {
+            const container = document.getElementById('scheduleItems');
+            container.innerHTML = '';
+            container.className = currentView === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-6' : 'p-6 space-y-4';
+            
+            // Group and sort items by date
+            const groupedItems = items.reduce((acc, item) => {
+                if (!acc[item.date]) acc[item.date] = [];
+                acc[item.date].push(item);
+                return acc;
+            }, {});
+
+            const sortedDates = Object.keys(groupedItems).sort((a, b) => new Date(a) - new Date(b));
+
+            sortedDates.forEach(date => {
+                // Add date header
+                if (groupedItems[date].length > 0) {
+                    const dateHeader = document.createElement('div');
+                    dateHeader.className = 'text-2xl font-bold text-gray-700 mb-4 col-span-full';
+                    dateHeader.textContent = formatDate(date);
+                    container.appendChild(dateHeader);
+
+                    // Sort items within the date by start time
+                    groupedItems[date]
+                        .sort((a, b) => a.time.localeCompare(b.time))
+                        .forEach(item => {
+                            container.appendChild(createScheduleItem(item));
+                        });
+                }
+            });
+        }
+
+        function addNewTask(event) {
+            event.preventDefault();
+            const form = event.target;
+            const startTime = form.startTime.value;
+            const endTime = form.endTime.value;
+            
+            const newTask = {
+                id: Date.now(),
+                date: form.taskDate.value,
+                time: `${startTime} - ${endTime}`,
+                title: form.title.value,
+                duration: calculateDuration(startTime, endTime),
+                subject: form.subject.value,
+                priority: form.priority.value,
+                icon: getSubjectIcon(form.subject.value)
+            };
+            
+            scheduleItems.push(newTask);
+            renderSchedule();
+            form.reset();
+        }
+
+        function calculateDuration(start, end) {
+            const startDate = new Date(`2000/01/01 ${start}`);
+            const endDate = new Date(`2000/01/01 ${end}`);
+            const diff = (endDate - startDate) / (1000 * 60 * 60);
+            return `${diff} hour${diff !== 1 ? 's' : ''}`;
+        }
+
+        function deleteTask(id) {
+            scheduleItems = scheduleItems.filter(item => item.id !== id);
+            renderSchedule();
+        }
+
+        function filterSchedule() {
+            const subject = document.getElementById('filterSubject').value;
+            const filteredItems = scheduleItems.filter(item => 
+                (subject === 'all' || item.subject === subject)
+            );
+            renderSchedule(filteredItems);
+        }
+
+        function toggleView() {
+            currentView = currentView === 'list' ? 'grid' : 'list';
+            renderSchedule();
+        }
+
+        // Initial render
+        renderSchedule();
+    </script>
+</body>
+</html>
